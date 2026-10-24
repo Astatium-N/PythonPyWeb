@@ -3,7 +3,6 @@ from django.views import View
 from django.db.models import Q, Max, Min, Avg, Count
 from .models import Author, AuthorProfile, Entry, Tag
 
-
 class TrainView(View):
     def get(self, request):
         max_self_esteem = Author.objects.aggregate(max_self_esteem=Max('self_esteem'))
@@ -33,4 +32,3 @@ class TrainView(View):
 
         context = {f'answer{index}': self.__dict__[f'answer{index}'] for index in range(1, 11)}
         return render(request, 'train_db/training_db.html', context=context)
-
