@@ -11,9 +11,14 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
+from rest_framework import permissions
+from rest_framework import authentication
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 
 class AuthorAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
     @csrf_exempt
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
@@ -83,10 +88,26 @@ class AuthorAPIView(APIView):
         author.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+class CustomPermission(permissions.BasePermission):
+
+    def has_permission(self, request, view):
+        if request.method == 'GET' and not request.user.is_authenticated:
+            return True
+
+        if request.method in ['GET', 'POST'] and request.user.is_authenticated:
+            return True
+
+        if request.user.is_superuser:
+            return True
+
+        return False
+
 class AuthorGenericAPIView(GenericAPIView, RetrieveModelMixin, ListModelMixin, CreateModelMixin, UpdateModelMixin,
                            DestroyModelMixin):
     queryset = Author.objects.all()
     serializer_class = AuthorModelSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
     def get(self, request, *args, **kwargs):
         if kwargs.get(self.lookup_field):
