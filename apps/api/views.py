@@ -4,6 +4,13 @@ from rest_framework import status
 from django.views.decorators.csrf import csrf_exempt
 from apps.db_train_alternative.models import Author
 from .serializers import AuthorModelSerializer
+from django.http import Http404
+from rest_framework.generics import GenericAPIView
+from rest_framework.mixins import RetrieveModelMixin, ListModelMixin, CreateModelMixin, UpdateModelMixin, DestroyModelMixin
+from rest_framework.viewsets import ModelViewSet
+from rest_framework.pagination import PageNumberPagination
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters
 
 
 class AuthorAPIView(APIView):
@@ -75,3 +82,50 @@ class AuthorAPIView(APIView):
 
         author.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+class AuthorGenericAPIView(GenericAPIView, RetrieveModelMixin, ListModelMixin, CreateModelMixin, UpdateModelMixin,
+                           DestroyModelMixin):
+    queryset = Author.objects.all()
+    serializer_class = AuthorModelSerializer
+
+    def get(self, request, *args, **kwargs):
+        if kwargs.get(self.lookup_field):
+            try:
+                return self.retrieve(request, *args, **kwargs)
+            except Http404:
+                return Response({'message': 'Автор не найден'}, status=status.HTTP_404_NOT_FOUND)
+        return self.list(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        return self.create(request, *args, **kwargs)
+
+    def put(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+
+    def patch(self, request, *args, **kwargs):
+        return self.partial_update(request, *args, **kwargs)
+
+    def delete(self, request, *args, **kwargs):
+        return self.destroy(request, *args, **kwargs)
+
+class AuthorPagination(PageNumberPagination):
+    page_size = 5
+    page_size_query_param = 'page_size'
+    max_page_size = 1000
+
+class AuthorViewSet(ModelViewSet):
+    queryset = Author.objects.all()
+    serializer_class = AuthorModelSerializer
+    pagination_class = AuthorPagination
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['name', 'email']
+    search_fields = ['email']
+    ordering_fields = ['name', 'email']
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        name = self.request.query_params.get('name')
+        if name:
+            queryset = queryset.filter(name__contains=name)
+        return queryset
+
